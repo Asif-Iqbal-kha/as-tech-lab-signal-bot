@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
+<title>AS Signal Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080b;--card:#11141b;--card2:#161a23;--line:#242a38;--line2:#2f3647;
+  --text:#ebe8e0;--muted:#8d92a1;--dim:#5c6272;
+  --gold:#e3b04b;--gold2:#f7d67f;--gold3:#a5771f;
+  --up:#1fcf7a;--down:#f0475a;--none:#8b90a0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text)}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;min-height:100vh;overflow-x:hidden;
+  background:radial-gradient(120% 50% at 50% -8%,rgba(227,176,75,.11),transparent 60%),var(--bg);-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.app{max-width:440px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.head,h1,h2,h3{font-family:'Chakra Petch',sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{flex:none;width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--gold2),var(--gold3));color:#1b1306;
+  font:700 15px 'Chakra Petch';display:grid;place-items:center;box-shadow:0 6px 20px rgba(227,176,75,.22),inset 0 1px 0 rgba(255,255,255,.35)}
+.brand h1{font-size:18px;letter-spacing:.05em;line-height:1.1}
+.brand h1 span{color:var(--gold)}
+.status{display:flex;align-items:center;gap:6px;font:500 11px 'IBM Plex Mono';color:var(--muted);margin-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
+.dot.live{background:var(--up);box-shadow:0 0 8px var(--up)}
+.dot.poll{background:var(--gold)}
+.dot.err{background:var(--down)}
+.iconbtn{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--card);
+  font:600 12px 'Chakra Petch';letter-spacing:.08em;text-transform:uppercase;color:var(--gold2)}
+.iconbtn .badge{font:500 11px 'IBM Plex Mono';color:var(--muted)}
+.card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.label{font:600 11px 'Chakra Petch';letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.label em{font:400 11px 'IBM Plex Mono';letter-spacing:0;text-transform:none;color:var(--dim);font-style:normal}
+.seg{display:grid;gap:6px}
+.seg.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.seg.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.seg button{padding:10px 4px;border:1px solid var(--line2);border-radius:10px;background:rgba(255,255,255,.015);
+  font:500 12.5px 'IBM Plex Mono';color:var(--muted);transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg button.on{border-color:var(--gold);color:var(--gold2);background:rgba(227,176,75,.09);box-shadow:inset 0 0 0 1px rgba(227,176,75,.25)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.payout{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:10px;padding:0 10px;background:rgba(255,255,255,.015)}
+.payout input{width:100%;min-width:0;background:none;border:0;outline:0;padding:9px 0;font:500 14px 'IBM Plex Mono';color:var(--gold2)}
+.payout span{color:var(--dim);font:500 12px 'IBM Plex Mono'}
+.be{font:500 12px 'IBM Plex Mono';color:var(--muted);padding-top:9px}
+.be b{color:var(--text);font-weight:500}
+.pricebar{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:8px}
+.pricebar .sym{font:600 13px 'Chakra Petch';letter-spacing:.06em;color:var(--muted)}
+.pricebar .px{font:600 24px 'IBM Plex Mono';letter-spacing:-.01em;line-height:1.1}
+.pricebar .chg{font:500 12px 'IBM Plex Mono';text-align:right;color:var(--muted)}
+.chartbox{position:relative;width:100%}
+#chart{display:block;width:100%;height:170px}
+.chartfoot{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font:400 11px 'IBM Plex Mono';color:var(--dim)}
+.cta{width:100%;padding:18px 16px;border-radius:14px;margin:4px 0 12px;
+  background:linear-gradient(180deg,var(--gold2),var(--gold) 55%,var(--gold3));color:#1b1306;
+  font:700 17px 'Chakra Petch';letter-spacing:.16em;text-transform:uppercase;
+  box-shadow:0 10px 30px rgba(227,176,75,.25),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .1s,filter .15s}
+.cta:active{transform:scale(.985)}
+.cta:disabled{filter:grayscale(.7) brightness(.6);cursor:not-allowed}
+.ghost{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line2);background:var(--card);
+  font:600 13px 'Chakra Petch';letter-spacing:.12em;text-transform:uppercase;color:var(--text)}
+.view{display:none}
+.view.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* analysing */
+.steps{list-style:none;display:grid;gap:10px}
+.steps li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);color:var(--dim)}
+.steps li .t{font:600 14px 'Chakra Petch';letter-spacing:.03em}
+.steps li .d{grid-column:2/4;font:400 11.5px 'IBM Plex Mono';color:var(--muted);margin-top:-4px}
+.steps li .ms{font:400 11px 'IBM Plex Mono'}
+.steps li.active{color:var(--gold2);border-color:rgba(227,176,75,.45)}
+.steps li.done{color:var(--text)}
+.steps li.fail{color:var(--down);border-color:rgba(240,71,90,.45)}
+.ico{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;display:grid;place-items:center;font-size:11px;line-height:1}
+.active .ico{border-color:rgba(227,176,75,.3);border-top-color:var(--gold2);animation:spin .7s linear infinite}
+.done .ico{background:var(--up);border-color:var(--up);color:#04140b}
+.fail .ico{background:var(--down);border-color:var(--down);color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+.errbox{display:none;margin-top:12px;padding:12px;border-radius:12px;border:1px solid rgba(240,71,90,.4);color:#ffb3bc;font:400 12px 'IBM Plex Mono'}
+/* result */
+.sig{position:relative;overflow:hidden;text-align:center;padding:22px 14px 18px;border-radius:18px;margin-bottom:12px;border:1px solid}
+.sig.BUY{border-color:rgba(31,207,122,.5);background:radial-gradient(90% 120% at 50% 0%,rgba(31,207,122,.22),rgba(31,207,122,.04) 70%),var(--card)}
+.sig.SELL{border-color:rgba(240,71,90,.5);background:radial-gradient(90% 120% at 50% 0%,rgba(240,71,90,.22),rgba(240,71,90,.04) 70%),var(--card)}
+.sig.NONE{border-color:var(--line2);background:radial-gradient(90% 120% at 50% 0%,rgba(139,144,160,.14),transparent 70%),var(--card)}
+.sig .meta{font:500 11.5px 'IBM Plex Mono';color:var(--muted);letter-spacing:.02em}
+.sig .big{font:700 40px 'Chakra Petch';letter-spacing:.06em;line-height:1.1;margin:8px 0 2px}
+.sig.BUY .big{color:var(--up)} .sig.SELL .big{color:var(--down)} .sig.NONE .big{color:var(--none)}
+.sig .sub{font:600 13px 'Chakra Petch';letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.pips{display:flex;justify-content:center;gap:6px;margin:14px 0 4px}
+.pips i{width:34px;height:6px;border-radius:3px;background:var(--line2)}
+.sig.BUY .pips i.f{background:var(--up)} .sig.SELL .pips i.f{background:var(--down)} .sig.NONE .pips i.f{background:var(--none)}
+.strength{font:500 12px 'IBM Plex Mono';color:var(--muted)}
+.strength b{color:var(--text);font-weight:600}
+.reasons{list-style:none;display:grid;gap:8px}
+.reasons li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:13.5px}
+.reasons li .v{font:500 12px 'IBM Plex Mono';padding:2px 7px;border-radius:6px;background:var(--line);color:var(--muted)}
+.reasons li .v.p{background:rgba(31,207,122,.14);color:var(--up)}
+.reasons li .v.n{background:rgba(240,71,90,.14);color:var(--down)}
+.reasons li.note{color:var(--gold2);font-size:12.5px}
+.reasons .sub2{display:block;font:400 11px 'IBM Plex Mono';color:var(--dim)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.stat .k{font:600 10.5px 'Chakra Petch';letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font:600 22px 'IBM Plex Mono';line-height:1.25;margin-top:2px}
+.stat .s{font:400 11px 'IBM Plex Mono';color:var(--muted)}
+.wr{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.wr .v{font:600 34px 'IBM Plex Mono';line-height:1.1}
+.wr .n{font:400 12px 'IBM Plex Mono';color:var(--muted);text-align:right}
+.cibar{position:relative;height:28px;margin:14px 0 4px}
+.cibar .track{position:absolute;left:0;right:0;top:12px;height:4px;border-radius:2px;background:var(--line)}
+.cibar .rng{position:absolute;top:9px;height:10px;border-radius:5px;background:rgba(227,176,75,.35);border:1px solid var(--gold)}
+.cibar .pt{position:absolute;top:7px;width:2px;height:14px;margin-left:-1px;background:var(--gold2)}
+.cibar .be{position:absolute;top:0;height:28px;width:0;border-left:2px dashed var(--text);padding:0}
+.cibar .be span{position:absolute;top:-2px;left:4px;font:500 9.5px 'IBM Plex Mono';color:var(--text);white-space:nowrap}
+.ciaxis{display:flex;justify-content:space-between;font:400 10px 'IBM Plex Mono';color:var(--dim)}
+.cirow{font:400 12px 'IBM Plex Mono';color:var(--muted);margin-top:8px}
+.cirow b{color:var(--text);font-weight:500}
+.verdict{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;margin-top:12px;font:700 15px 'Chakra Petch';letter-spacing:.06em;text-transform:uppercase}
+.verdict small{display:block;font:400 11.5px 'IBM Plex Sans';letter-spacing:0;text-transform:none;color:var(--muted);margin-top:2px}
+.verdict.edge{background:rgba(31,207,122,.1);border:1px solid rgba(31,207,122,.45);color:var(--up)}
+.verdict.noedge{background:rgba(227,176,75,.08);border:1px solid rgba(227,176,75,.4);color:var(--gold2)}
+.verdict.losing{background:rgba(240,71,90,.1);border:1px solid rgba(240,71,90,.45);color:var(--down)}
+.countdown{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.countdown .k{font:600 11px 'Chakra Petch';letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.countdown .s{font:400 11px 'IBM Plex Mono';color:var(--dim);margin-top:2px}
+.countdown .v{font:600 30px 'IBM Plex Mono';color:var(--gold2)}
+.progress{height:3px;background:var(--line);border-radius:2px;margin-top:10px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--gold);width:0}
+/* log */
+.lsum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center}
+.lsum .v{font:600 18px 'IBM Plex Mono'}
+.lsum .k{font:600 10px 'Chakra Petch';letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.btnrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
+.small{padding:10px;border-radius:10px;border:1px solid var(--line2);background:rgba(255,255,255,.02);font:600 12px 'Chakra Petch';letter-spacing:.1em;text-transform:uppercase}
+.small.danger{color:#ff9aa6}
+.hist{list-style:none;display:grid;gap:8px}
+.hist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015)}
+.tag{font:700 11px 'Chakra Petch';letter-spacing:.08em;padding:4px 7px;border-radius:6px;min-width:46px;text-align:center}
+.tag.BUY{background:rgba(31,207,122,.15);color:var(--up)}
+.tag.SELL{background:rgba(240,71,90,.15);color:var(--down)}
+.tag.NONE{background:var(--line);color:var(--none)}
+.hist .m1{font:500 12.5px 'IBM Plex Mono';white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist .m2{font:400 11px 'IBM Plex Mono';color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res{font:700 12px 'Chakra Petch';letter-spacing:.08em}
+.res.W{color:var(--up)} .res.L{color:var(--down)} .res.T{color:var(--muted)} .res.P{color:var(--gold2)} .res.N{color:var(--dim)}
+.empty{color:var(--dim);font:400 12px 'IBM Plex Mono';text-align:center;padding:16px 0}
+.selftest{font:400 11.5px 'IBM Plex Mono';color:var(--muted);margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+footer{margin-top:18px;text-align:center;font:400 11px 'IBM Plex Mono';color:var(--dim);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">AS</div>
+      <div>
+        <h1>AS <span>SIGNAL</span> BOT</h1>
+        <div class="status"><i class="dot" id="dot"></i><span id="statusTxt">Connecting…</span></div>
+      </div>
+    </div>
+    <button class="iconbtn" id="btnLog">Log <span class="badge mono" id="logCount">0</span></button>
+  </header>
+
+  <!-- SCREEN 1: SETUP -->
+  <section class="view on" id="v-setup">
+    <div class="card">
+      <div class="label">Market</div>
+      <div class="seg c3" id="segMarket"></div>
+    </div>
+    <div class="card">
+      <div class="label">Timeframe</div>
+      <div class="seg c4" id="segTf"></div>
+      <div class="label" style="margin-top:14px">Expiry <em>candles</em></div>
+      <div class="seg c4" id="segExp"></div>
+      <div class="row2" style="margin-top:14px">
+        <div>
+          <div class="label">Payout</div>
+          <label class="payout"><input id="payout" type="number" inputmode="decimal" min="1" max="200" step="1" value="85"><span>%</span></label>
+        </div>
+        <div>
+          <div class="label">Break-even</div>
+          <div class="be">need <b id="beSetup">–</b> wins</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="pricebar">
+        <div>
+          <div class="sym" id="chartSym">BTCUSDT · 1m</div>
+          <div class="px mono" id="price">–</div>
+        </div>
+        <div class="chg" id="chg">–</div>
+      </div>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+      <div class="chartfoot"><span id="chartInfo">last 60 candles</span><span id="candleClose">–</span></div>
+    </div>
+    <button class="cta" id="btnGen">Generate Signal</button>
+  </section>
+
+  <!-- ANALYSING -->
+  <section class="view" id="v-analysing">
+    <div class="card">
+      <div class="label">Analysing <em id="anaWhat"></em></div>
+      <ul class="steps" id="steps"></ul>
+      <div class="errbox" id="anaErr"></div>
+    </div>
+    <button class="ghost" id="btnAnaBack" style="display:none">Back</button>
+  </section>
+
+  <!-- SCREEN 2: RESULT -->
+  <section class="view" id="v-result">
+    <div class="sig NONE" id="sigCard">
+      <div class="meta" id="sigMeta">–</div>
+      <div class="big" id="sigBig">–</div>
+      <div class="sub" id="sigSub">–</div>
+      <div class="pips" id="pips"><i></i><i></i><i></i><i></i></div>
+      <div class="strength">Signal strength <b id="sigStrength">–</b></div>
+    </div>
+
+    <div class="card">
+      <div class="countdown">
+        <div><div class="k" id="cdLabel">Entry in</div><div class="s" id="cdSub">–</div></div>
+        <div class="v mono" id="cdVal">–</div>
+      </div>
+      <div class="progress"><i id="cdBar"></i></div>
+    </div>
+
+    <div class="card">
+      <div class="label">Why <em id="whyMeta"></em></div>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+
+    <div class="card">
+      <div class="label">Backtest win rate <em id="btScope"></em></div>
+      <div class="wr">
+        <div class="v mono" id="wrVal">–</div>
+        <div class="n" id="wrN">–</div>
+      </div>
+      <div class="cibar" id="cibar">
+        <div class="track"></div>
+        <div class="rng" id="ciRng"></div>
+        <div class="pt" id="ciPt"></div>
+        <div class="be" id="ciBe"><span id="ciBeTxt"></span></div>
+      </div>
+      <div class="ciaxis"><span>30%</span><span>50%</span><span>70%</span></div>
+      <div class="cirow">95% confidence range <b id="ciTxt">–</b></div>
+      <div class="verdict" id="verdict"><div><span id="verdictTxt">–</span><small id="verdictSub"></small></div></div>
+    </div>
+
+    <div class="card">
+      <div class="grid2">
+        <div class="stat"><div class="k">Break-even</div><div class="v mono" id="stBe">–</div><div class="s" id="stBeS">–</div></div>
+        <div class="stat"><div class="k">EV per $1</div><div class="v mono" id="stEv">–</div><div class="s">wr×payout − (1−wr)</div></div>
+        <div class="stat"><div class="k">Worst streak</div><div class="v mono" id="stStreak">–</div><div class="s">losses in a row</div></div>
+        <div class="stat"><div class="k">Candles tested</div><div class="v mono" id="stCandles">–</div><div class="s" id="stRange">–</div></div>
+      </div>
+    </div>
+
+    <button class="cta" id="btnNew">Generate New Signal</button>
+    <button class="ghost" id="btnBack">Change settings</button>
+  </section>
+
+  <!-- LOG -->
+  <section class="view" id="v-log">
+    <div class="card">
+      <div class="label">Forward test <em>live signals, checked automatically</em></div>
+      <div class="lsum">
+        <div><div class="v" id="lgTrades">0</div><div class="k">Trades</div></div>
+        <div><div class="v" id="lgW" style="color:var(--up)">0</div><div class="k">Wins</div></div>
+        <div><div class="v" id="lgL" style="color:var(--down)">0</div><div class="k">Losses</div></div>
+        <div><div class="v" id="lgWr">–</div><div class="k">Win rate</div></div>
+      </div>
+      <div class="cirow" id="lgCi" style="text-align:center">–</div>
+      <div class="btnrow">
+        <button class="small" id="btnCsv">Export CSV</button>
+        <button class="small danger" id="btnClear">Clear log</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">History <em id="lgPending"></em></div>
+      <ul class="hist" id="hist"></ul>
+    </div>
+    <div class="card">
+      <div class="label">Engine self-test</div>
+      <div style="font-size:12.5px;color:var(--muted)">Runs the exact signal rule and backtest on random-walk prices. A rule with no look-ahead bug should land near 50%.</div>
+      <button class="small" id="btnSelf" style="width:100%;margin-top:10px">Run random-walk test</button>
+      <div class="selftest" id="selfOut"></div>
+    </div>
+    <button class="ghost" id="btnLogBack">Back</button>
+  </section>
+
+  <footer>Real Binance data. Not financial advice.<br>Quotex OTC prices have no public feed and cannot be analysed.</footer>
+</div>
+
+<!-- ===================== ENGINE (pure functions, no DOM) ===================== -->
+<script id="engine">
+(function (root) {
+  'use strict';
+  const sign = x => (x > 0 ? 1 : x < 0 ? -1 : 0);
+  const ok = x => typeof x === 'number' && isFinite(x);
+
+  // EMA seeded with the SMA of the first `period` valid values. Leading NaNs are skipped.
+  function ema(values, period) {
+    const out = new Array(values.length).fill(NaN);
+    let s = 0;
+    while (s < values.length && !ok(values[s])) s++;
+    if (values.length - s < period) return out;
+    let sum = 0;
+    for (let i = s; i < s + period; i++) sum += values[i];
+    let prev = sum / period;
+    out[s + period - 1] = prev;
+    const k = 2 / (period + 1);
+    for (let i = s + period; i < values.length; i++) {
+      prev = values[i] * k + prev * (1 - k);
+      out[i] = prev;
+    }
+    return out;
+  }
+
+  // RSI with Wilder smoothing.
+  function rsi(closes, period = 14) {
+    const out = new Array(closes.length).fill(NaN);
+    if (closes.length <= period) return out;
+    let g = 0, l = 0;
+    for (let i = 1; i <= period; i++) {
+      const d = closes[i] - closes[i - 1];
+      if (d > 0) g += d; else l -= d;
+    }
+    let ag = g / period, al = l / period;
+    const val = () => (al === 0 ? (ag === 0 ? 50 : 100) : 100 - 100 / (1 + ag / al));
+    out[period] = val();
+    for (let i = period + 1; i < closes.length; i++) {
+      const d = closes[i] - closes[i - 1];
+      ag = (ag * (period - 1) + Math.max(d, 0)) / period;
+      al = (al * (period - 1) + Math.max(-d, 0)) / period;
+      out[i] = val();
+    }
+    return out;
+  }
+
+  function macd(closes, fast = 12, slow = 26, sig = 9) {
+    const f = ema(closes, fast), s = ema(closes, slow);
+    const line = closes.map((_, i) => (ok(f[i]) && ok(s[i]) ? f[i] - s[i] : NaN));
+    const signal = ema(line, sig);
+    const hist = line.map((v, i) => (ok(v) && ok(signal[i]) ? v - signal[i] : NaN));
+    return { line, signal, hist };
+  }
+
+  // candles: [{t,o,h,l,c,T}] — CLOSED candles only.
+  function computeIndicators(candles) {
+    const close = candles.map(c => c.c);
+    const m = macd(close);
+    return {
+      close,
+      ema9: ema(close, 9), ema21: ema(close, 21), ema50: ema(close, 50),
+      rsi: rsi(close, 14),
+      macd: m.line, macdSignal: m.signal, hist: m.hist
+    };
+  }
+
+  // Uses only data at indices <= i.
+  function evaluate(ind, i) {
+    if (i < 1) return null;
+    const e9 = ind.ema9[i], e21 = ind.ema21[i], e50 = ind.ema50[i];
+    const h = ind.hist[i], hp = ind.hist[i - 1], r = ind.rsi[i], c = ind.close[i];
+    if (![e9, e21, e50, h, hp, r, c].every(ok)) return null;
+    const components = [sign(e9 - e21), sign(h), sign(h - hp), sign(c - e50)];
+    const score = components.reduce((a, b) => a + b, 0);
+    let dir = score >= 3 ? 'BUY' : score <= -3 ? 'SELL' : 'NONE';
+    let filtered = null;
+    if (dir === 'BUY' && r > 70) { filtered = 'BUY'; dir = 'NONE'; }
+    if (dir === 'SELL' && r < 30) { filtered = 'SELL'; dir = 'NONE'; }
+    return { i, dir, score, components, filtered,
+      values: { ema9: e9, ema21: e21, ema50: e50, hist: h, histPrev: hp, rsi: r, close: c } };
+  }
+
+  // direction: 'BUY' | 'SELL' | 'ANY'. Entry = close[i], exit = close[i+expiry]. One trade at a time.
+  function backtest(candles, opts = {}) {
+    const expiry = opts.expiry || 1;
+    const direction = opts.direction || 'ANY';
+    const ind = opts.ind || computeIndicators(candles);
+    const close = ind.close, n = close.length, trades = [];
+    let i = 1;
+    while (i + expiry < n) {
+      const s = evaluate(ind, i);
+      if (s && s.dir !== 'NONE' && (direction === 'ANY' || s.dir === direction)) {
+        const entry = close[i], exit = close[i + expiry], d = exit - entry;
+        const result = d === 0 ? 'T' : ((s.dir === 'BUY') === (d > 0) ? 'W' : 'L');
+        trades.push({ i, t: candles[i] && candles[i].t, dir: s.dir, score: s.score, entry, exit, result });
+        i += expiry; // next entry can only be at the exit candle's close
+      } else i++;
+    }
+    return { trades, candles: n, expiry, direction };
+  }
+
+  function wilson(k, n, z = 1.96) {
+    if (!n) return { lo: NaN, hi: NaN };
+    const p = k / n, z2 = z * z;
+    const den = 1 + z2 / n;
+    const center = (p + z2 / (2 * n)) / den;
+    const half = (z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / den;
+    return { lo: Math.max(0, center - half), hi: Math.min(1, center + half) };
+  }
+
+  const breakEven = payout => 1 / (1 + payout);
+
+  function stats(trades, payout = 0.85) {
+    let w = 0, l = 0, t = 0, run = 0, maxRun = 0;
+    for (const tr of trades) {
+      if (tr.result === 'W') { w++; run = 0; }
+      else if (tr.result === 'L') { l++; run++; if (run > maxRun) maxRun = run; }
+      else t++; // ties: stake returned, streak unchanged
+    }
+    const n = w + l;
+    const winRate = n ? w / n : NaN;
+    const ci = wilson(w, n);
+    const be = breakEven(payout);
+    const ev = n ? winRate * payout - (1 - winRate) : NaN;
+    let verdict = 'No proven edge';
+    if (n && ci.lo > be) verdict = 'Edge found';
+    else if (n && ci.hi < be) verdict = 'Losing setup';
+    return { wins: w, losses: l, ties: t, n, total: trades.length, winRate, ci, breakEven: be, ev, longestLosingStreak: maxRun, verdict, payout };
+  }
+
+  // Seeded PRNG + Gaussian random walk candles, for look-ahead testing.
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randomWalkCandles(n = 20000, seed = 42, start = 100, vol = 0.002) {
+    const rnd = mulberry32(seed);
+    const gauss = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+    const out = []; let p = start;
+    for (let i = 0; i < n; i++) {
+      const o = p; const c = o * Math.exp(vol * gauss());
+      const h = Math.max(o, c) * (1 + Math.abs(gauss()) * vol * 0.3);
+      const l = Math.min(o, c) * (1 - Math.abs(gauss()) * vol * 0.3);
+      out.push({ t: i * 60000, o, h, l, c, T: i * 60000 + 59999 });
+      p = c;
+    }
+    return out;
+  }
+  function runRandomWalkTest(opts = {}) {
+    const n = opts.n || 20000, seeds = opts.seeds || [1, 2, 3], expiries = opts.expiries || [1, 2, 3, 5], payout = opts.payout || 0.85;
+    const res = {};
+    for (const e of expiries) {
+      const all = { BUY: [], SELL: [], ANY: [] };
+      for (const s of seeds) {
+        const c = randomWalkCandles(n, s);
+        const ind = computeIndicators(c);
+        for (const d of ['BUY', 'SELL', 'ANY']) all[d].push(...backtest(c, { expiry: e, direction: d, ind }).trades);
+      }
+      res[e] = {};
+      for (const d of ['BUY', 'SELL', 'ANY']) {
+        const st = stats(all[d], payout);
+        res[e][d] = { winRate: st.winRate, n: st.n, ciLo: st.ci.lo, ciHi: st.ci.hi };
+      }
+    }
+    return res;
+  }
+
+  const ASEngine = { sign, ema, rsi, macd, computeIndicators, evaluate, backtest, wilson, breakEven, stats, mulberry32, randomWalkCandles, runRandomWalkTest };
+  root.ASEngine = ASEngine;
+  Object.assign(root, ASEngine);
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+
+<!-- ===================== APP ===================== -->
+<script>
+(function () {
+  'use strict';
+  const E = window.ASEngine;
+  const $ = s => document.querySelector(s);
+  const MARKETS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'EURUSDT'];
+  const TFS = ['1m', '3m', '5m', '15m'];
+  const EXPIRIES = [1, 2, 3, 5];
+  const INTERVAL_MS = { '1m': 60000, '3m': 180000, '5m': 300000, '15m': 900000 };
+  const REST = ['https://data-api.binance.vision', 'https://api.binance.com'];
+  const LOG_KEY = 'asb.log.v1', SET_KEY = 'asb.settings.v1';
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  const saved = store.get(SET_KEY, {});
+  const state = {
+    symbol: MARKETS.includes(saved.symbol) ? saved.symbol : 'BTCUSDT',
+    tf: TFS.includes(saved.tf) ? saved.tf : '1m',
+    expiry: EXPIRIES.includes(saved.expiry) ? saved.expiry : 1,
+    payout: saved.payout > 0 ? saved.payout : 0.85,
+    candles: [], ws: null, pollTimer: null, liveGen: 0, serverOffset: 0,
+    last: null, busy: false
+  };
+  const saveSettings = () => store.set(SET_KEY, { symbol: state.symbol, tf: state.tf, expiry: state.expiry, payout: state.payout });
+  const serverNow = () => Date.now() + state.serverOffset;
+
+  // ---------- formatting ----------
+  const pct = (x, d = 1) => (isFinite(x) ? (x * 100).toFixed(d) + '%' : '–');
+  function fmtPrice(p) {
+    if (!isFinite(p)) return '–';
+    const d = p >= 100 ? 2 : p >= 1 ? 4 : 5;
+    return p.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function fmtDur(ms) {
+    ms = Math.max(0, ms);
+    const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    const p2 = n => String(n).padStart(2, '0');
+    return h ? `${h}:${p2(m)}:${p2(ss)}` : `${p2(m)}:${p2(ss)}`;
+  }
+  const fmtTime = t => new Date(t).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const fmtNum = (x, d = 3) => (isFinite(x) ? (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d) : '–');
+
+  // ---------- data ----------
+  async function fetchJSON(path) {
+    let lastErr;
+    for (const base of REST) {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 8000);
+      try {
+        const r = await fetch(base + path, { signal: ctl.signal, cache: 'no-store' });
+        clearTimeout(to);
+        if (!r.ok) throw new Error(`${base} HTTP ${r.status}`);
+        return await r.json();
+      } catch (e) { clearTimeout(to); lastErr = e; }
+    }
+    throw lastErr || new Error('Network error');
+  }
+  async function fetchKlines(symbol, interval, { limit = 1000, startTime } = {}) {
+    let q = `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    if (startTime != null) q += `&startTime=${startTime}`;
+    const raw = await fetchJSON(q);
+    return raw.map(k => ({ t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], T: +k[6] }));
+  }
+  async function syncTime() {
+    try {
+      const t0 = Date.now(); const j = await fetchJSON('/api/v3/time'); const t1 = Date.now();
+      state.serverOffset = j.serverTime - (t0 + t1) / 2;
+    } catch (e) { state.serverOffset = 0; }
+  }
+
+  // ---------- live feed ----------
+  function setStatus(kind, txt) {
+    $('#dot').className = 'dot ' + (kind || '');
+    $('#statusTxt').textContent = txt;
+  }
+  function stopLive() {
+    if (state.ws) { state.ws.onclose = null; state.ws.onmessage = null; try { state.ws.close(); } catch (e) {} state.ws = null; }
+    if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+  }
+  function mergeCandle(k) {
+    const c = state.candles;
+    if (!c.length) c.push(k);
+    else {
+      const last = c[c.length - 1];
+      if (k.t === last.t) c[c.length - 1] = k;
+      else if (k.t > last.t) { c.push(k); if (c.length > 300) c.shift(); }
+    }
+    scheduleDraw();
+  }
+  async function startLive() {
+    const gen = ++state.liveGen;
+    stopLive();
+    state.candles = [];
+    setStatus('', 'Connecting…');
+    drawChart();
+    try {
+      const k = await fetchKlines(state.symbol, state.tf, { limit: 120 });
+      if (gen !== state.liveGen) return;
+      state.candles = k; drawChart();
+    } catch (e) {
+      if (gen !== state.liveGen) return;
+      setStatus('err', 'REST unreachable');
+    }
+    openWS(gen);
+  }
+  function openWS(gen) {
+    let opened = false, ws;
+    try { ws = new WebSocket(`wss://data-stream.binance.vision/ws/${state.symbol.toLowerCase()}@kline_${state.tf}`); }
+    catch (e) { startPolling(gen); return; }
+    state.ws = ws;
+    const to = setTimeout(() => { if (!opened && gen === state.liveGen) { ws.onclose = null; try { ws.close(); } catch (e) {} startPolling(gen); } }, 6000);
+    ws.onopen = () => { opened = true; clearTimeout(to); if (gen === state.liveGen) setStatus('live', 'Live · WebSocket'); };
+    ws.onmessage = ev => {
+      if (gen !== state.liveGen) return;
+      try {
+        const k = JSON.parse(ev.data).k; if (!k) return;
+        mergeCandle({ t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, T: k.T });
+      } catch (e) {}
+    };
+    ws.onclose = () => { clearTimeout(to); if (gen === state.liveGen && !state.pollTimer) startPolling(gen); };
+  }
+  function startPolling(gen) {
+    if (gen !== state.liveGen || state.pollTimer) return;
+    state.ws = null;
+    setStatus('poll', 'Live · polling 3s');
+    const tick = async () => {
+      try {
+        const k = await fetchKlines(state.symbol, state.tf, { limit: 2 });
+        if (gen !== state.liveGen) return;
+        k.forEach(mergeCandle);
+        setStatus('poll', 'Live · polling 3s');
+      } catch (e) { if (gen === state.liveGen) setStatus('err', 'Feed error · retrying'); }
+    };
+    tick();
+    state.pollTimer = setInterval(tick, 3000);
+  }
+
+  // ---------- chart ----------
+  let drawQueued = false;
+  function scheduleDraw() { if (drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; drawChart(); }); }
+  function drawChart() {
+    const cv = $('#chart'); const w = cv.clientWidth || 300, h = 170, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    $('#chartSym').textContent = `${state.symbol} · ${state.tf}`;
+    const N = 60, data = state.candles.slice(-N);
+    if (!data.length) {
+      ctx.fillStyle = '#5c6272'; ctx.font = '12px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+      ctx.fillText('Loading candles…', w / 2, h / 2);
+      $('#price').textContent = '–'; $('#chg').textContent = '–';
+      return;
+    }
+    const padR = 64, padT = 8, padB = 8, plotW = w - padR, plotH = h - padT - padB;
+    let hi = -Infinity, lo = Infinity;
+    for (const c of data) { if (c.h > hi) hi = c.h; if (c.l < lo) lo = c.l; }
+    if (hi === lo) { hi += hi * 1e-4; lo -= lo * 1e-4; }
+    const y = p => padT + (hi - p) / (hi - lo) * plotH;
+    ctx.font = '10px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    for (let g = 0; g <= 3; g++) {
+      const p = lo + (hi - lo) * g / 3, yy = Math.round(y(p)) + 0.5;
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(plotW, yy); ctx.stroke();
+      ctx.fillStyle = '#5c6272'; ctx.fillText(fmtPrice(p), plotW + 6, yy);
+    }
+    const slot = plotW / N, bw = Math.max(1, slot * 0.62), off = (N - data.length) * slot;
+    data.forEach((c, i) => {
+      const x = off + (i + 0.5) * slot, up = c.c >= c.o, col = up ? '#1fcf7a' : '#f0475a';
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, y(c.h)); ctx.lineTo(Math.round(x) + 0.5, y(c.l)); ctx.stroke();
+      const y1 = y(Math.max(c.o, c.c)), y2 = y(Math.min(c.o, c.c));
+      ctx.fillRect(x - bw / 2, y1, bw, Math.max(1, y2 - y1));
+    });
+    const last = data[data.length - 1], ly = Math.round(y(last.c)) + 0.5;
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(227,176,75,0.7)';
+    ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(plotW, ly); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#e3b04b'; ctx.fillRect(plotW + 2, ly - 8, padR - 2, 16);
+    ctx.fillStyle = '#1b1306'; ctx.font = '600 10px "IBM Plex Mono", monospace'; ctx.fillText(fmtPrice(last.c), plotW + 6, ly);
+    $('#price').textContent = fmtPrice(last.c);
+    const first = data[0].o, ch = (last.c - first) / first;
+    const chg = $('#chg');
+    chg.innerHTML = `<span style="color:${ch >= 0 ? 'var(--up)' : 'var(--down)'}">${ch >= 0 ? '+' : '−'}${Math.abs(ch * 100).toFixed(2)}%</span><br>${data.length} candles`;
+  }
+
+  // ---------- selectors ----------
+  function buildSeg(el, items, getter, setter, fmt) {
+    el.innerHTML = '';
+    items.forEach(v => {
+      const b = document.createElement('button');
+      b.textContent = fmt ? fmt(v) : v;
+      b.className = getter() === v ? 'on' : '';
+      b.onclick = () => { if (getter() === v) return; setter(v); [...el.children].forEach(x => x.classList.remove('on')); b.classList.add('on'); saveSettings(); };
+      el.appendChild(b);
+    });
+  }
+  function updateBreakEven() { $('#beSetup').textContent = pct(E.breakEven(state.payout)); }
+
+  // ---------- views ----------
+  function show(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + id));
+    window.scrollTo({ top: 0 });
+    if (id === 'setup') requestAnimationFrame(drawChart);
+    if (id === 'log') renderLog();
+  }
+
+  // ---------- generate ----------
+  const STEP_DEFS = [
+    ['fetch', 'Fetching candles'],
+    ['ind', 'Calculating indicators'],
+    ['bt', 'Running backtest']
+  ];
+  function renderSteps() {
+    $('#steps').innerHTML = STEP_DEFS.map(([id, t]) =>
+      `<li id="st-${id}"><span class="ico"></span><span class="t">${t}</span><span class="ms"></span><span class="d"></span></li>`).join('');
+  }
+  function stepSet(id, cls, detail, ms) {
+    const li = $('#st-' + id); li.className = cls;
+    if (cls === 'done') li.querySelector('.ico').textContent = '✓';
+    if (cls === 'fail') li.querySelector('.ico').textContent = '!';
+    if (detail != null) li.querySelector('.d').textContent = detail;
+    if (ms != null) li.querySelector('.ms').textContent = ms < 1 ? '<1 ms' : Math.round(ms) + ' ms';
+  }
+  const yieldUI = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+  async function generate() {
+    if (state.busy) return;
+    state.busy = true;
+    const symbol = state.symbol, tf = state.tf, expiry = state.expiry, payout = state.payout;
+    renderSteps();
+    $('#anaErr').style.display = 'none'; $('#btnAnaBack').style.display = 'none';
+    $('#anaWhat').textContent = `${symbol} · ${tf} · ${expiry}c`;
+    show('analysing');
+    let cur = 'fetch';
+    try {
+      // 1. fetch
+      stepSet('fetch', 'active'); await yieldUI();
+      let t0 = performance.now();
+      const raw = await fetchKlines(symbol, tf, { limit: 1000 });
+      if (raw.length < 80) throw new Error(`Only ${raw.length} candles returned — not enough history.`);
+      // Binance always returns the in-progress candle last; drop it so indicators use closed candles only.
+      const forming = raw[raw.length - 1];
+      const closed = raw.slice(0, -1);
+      stepSet('fetch', 'done', `${raw.length} candles received · ${closed.length} closed used`, performance.now() - t0);
+      if (symbol === state.symbol && tf === state.tf) mergeCandle(forming);
+
+      // 2. indicators
+      cur = 'ind'; stepSet('ind', 'active'); await yieldUI();
+      t0 = performance.now();
+      const ind = E.computeIndicators(closed);
+      const sig = E.evaluate(ind, closed.length - 1);
+      if (!sig) throw new Error('Not enough data to compute indicators.');
+      stepSet('ind', 'done', `EMA 9/21/50 · RSI 14 · MACD 12/26/9 → score ${sig.score > 0 ? '+' : ''}${sig.score}`, performance.now() - t0);
+
+      // 3. backtest
+      cur = 'bt'; stepSet('bt', 'active'); await yieldUI();
+      t0 = performance.now();
+      const direction = sig.dir === 'NONE' ? 'ANY' : sig.dir;
+      const bt = E.backtest(closed, { expiry, direction, ind });
+      const st = E.stats(bt.trades, payout);
+      stepSet('bt', 'done', `${st.total} trades found (${st.wins}W / ${st.losses}L / ${st.ties}T)`, performance.now() - t0);
+      await yieldUI();
+
+      const ms = INTERVAL_MS[tf];
+      const sigCandle = closed[closed.length - 1];
+      const result = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        createdAt: serverNow(), symbol, tf, expiry, payout,
+        dir: sig.dir, score: sig.score, rsi: sig.values.rsi, filtered: sig.filtered,
+        signalCandleOpen: sigCandle.t, signalClose: sigCandle.c,
+        entryOpen: forming.t, // entry = close of the candle forming now (countdown target)
+        entryAt: forming.t + ms, exitAt: forming.t + (expiry + 1) * ms,
+        status: sig.dir === 'NONE' ? 'none' : 'pending',
+        entryPrice: null, exitPrice: null, result: null,
+        bt: { direction, winRate: st.winRate, n: st.n, lo: st.ci.lo, hi: st.ci.hi, verdict: st.verdict }
+      };
+      addLog(result);
+      state.last = { result, sig, st, bt, closed };
+      renderResult();
+      show('result');
+    } catch (e) {
+      stepSet(cur, 'fail');
+      const box = $('#anaErr'); box.style.display = 'block'; box.textContent = 'Error: ' + (e && e.message ? e.message : e);
+      $('#btnAnaBack').style.display = 'block';
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  // ---------- result rendering ----------
+  function reasonList(sig) {
+    const v = sig.values, [c1, c2, c3, c4] = sig.components;
+    const word = (s, a, b, z) => (s > 0 ? a : s < 0 ? b : z);
+    const dp = v.close >= 100 ? 2 : v.close >= 1 ? 4 : 5;
+    const items = [
+      [word(c1, 'EMA 9 above EMA 21', 'EMA 9 below EMA 21', 'EMA 9 equal to EMA 21'), c1, `${v.ema9.toFixed(dp)} vs ${v.ema21.toFixed(dp)}`],
+      [word(c2, 'MACD histogram positive', 'MACD histogram negative', 'MACD histogram at zero'), c2, `hist ${v.hist.toExponential(2)}`],
+      [word(c3, 'MACD histogram rising', 'MACD histogram falling', 'MACD histogram flat'), c3, `${v.histPrev.toExponential(2)} → ${v.hist.toExponential(2)}`],
+      [word(c4, 'Price above EMA 50', 'Price below EMA 50', 'Price on EMA 50'), c4, `${v.close.toFixed(dp)} vs ${v.ema50.toFixed(dp)}`]
+    ];
+    let html = items.map(([t, s, d]) =>
+      `<li><span>${t}<span class="sub2">${d}</span></span><span class="v ${s > 0 ? 'p' : s < 0 ? 'n' : ''}">${s > 0 ? '+1' : s < 0 ? '−1' : '0'}</span></li>`).join('');
+    const rz = v.rsi > 70 ? 'overbought' : v.rsi < 30 ? 'oversold' : 'neutral';
+    html += `<li><span>RSI 14 is ${v.rsi.toFixed(1)} (${rz})<span class="sub2">filter: no BUY above 70, no SELL below 30</span></span><span class="v">filter</span></li>`;
+    if (sig.filtered) html += `<li class="note"><span>Score qualified for ${sig.filtered}, but RSI ${v.rsi.toFixed(1)} is ${sig.filtered === 'BUY' ? 'above 70' : 'below 30'}, so the trade is skipped.</span><span></span></li>`;
+    else if (sig.dir === 'NONE') html += `<li class="note"><span>Score ${sig.score > 0 ? '+' : ''}${sig.score} is between −3 and +3: indicators disagree, no trade.</span><span></span></li>`;
+    return html;
+  }
+
+  function renderResult() {
+    const { result: r, sig, st, bt, closed } = state.last;
+    const card = $('#sigCard'); card.className = 'sig ' + r.dir;
+    $('#sigMeta').textContent = `${r.symbol} · ${r.tf} · expiry ${r.expiry} candle${r.expiry > 1 ? 's' : ''}`;
+    $('#sigBig').textContent = r.dir === 'BUY' ? 'BUY' : r.dir === 'SELL' ? 'SELL' : 'NO TRADE';
+    $('#sigSub').textContent = r.dir === 'BUY' ? '▲ UP' : r.dir === 'SELL' ? '▼ DOWN' : 'stand aside';
+    const strength = Math.abs(sig.score);
+    [...$('#pips').children].forEach((p, i) => p.classList.toggle('f', i < strength));
+    $('#sigStrength').textContent = `${sig.score > 0 ? '+' : sig.score < 0 ? '−' : ''}${strength} / 4`;
+    $('#whyMeta').textContent = `candle closed ${new Date(r.signalCandleOpen + INTERVAL_MS[r.tf]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    $('#reasons').innerHTML = reasonList(sig);
+
+    // backtest
+    $('#btScope').textContent = bt.direction === 'ANY' ? 'all BUY+SELL signals' : `${bt.direction} signals`;
+    $('#wrVal').textContent = st.n ? pct(st.winRate) : '–';
+    $('#wrN').innerHTML = st.n
+      ? `${st.total} trades<br>${st.wins}W · ${st.losses}L · ${st.ties}T`
+      : `0 decisive trades<br>in ${closed.length} candles`;
+    const lo = 0.3, hi = 0.7, pos = x => Math.max(0, Math.min(1, (x - lo) / (hi - lo))) * 100;
+    if (st.n) {
+      $('#ciRng').style.display = $('#ciPt').style.display = 'block';
+      $('#ciRng').style.left = pos(st.ci.lo) + '%'; $('#ciRng').style.width = (pos(st.ci.hi) - pos(st.ci.lo)) + '%';
+      $('#ciPt').style.left = pos(st.winRate) + '%';
+      $('#ciTxt').textContent = `${pct(st.ci.lo)} – ${pct(st.ci.hi)}`;
+    } else {
+      $('#ciRng').style.display = $('#ciPt').style.display = 'none';
+      $('#ciTxt').textContent = 'n/a (no trades)';
+    }
+    $('#ciBe').style.left = pos(st.breakEven) + '%';
+    $('#ciBeTxt').textContent = 'BE ' + pct(st.breakEven);
+    const v = $('#verdict');
+    v.className = 'verdict ' + (st.verdict === 'Edge found' ? 'edge' : st.verdict === 'Losing setup' ? 'losing' : 'noedge');
+    $('#verdictTxt').textContent = st.verdict;
+    $('#verdictSub').textContent = !st.n ? 'No historical trades to judge.'
+      : st.verdict === 'Edge found' ? `Whole 95% range is above the ${pct(st.breakEven)} break-even.`
+      : st.verdict === 'Losing setup' ? `Whole 95% range is below the ${pct(st.breakEven)} break-even.`
+      : `95% range overlaps the ${pct(st.breakEven)} break-even. Can't tell from luck.`;
+
+    $('#stBe').textContent = pct(st.breakEven);
+    $('#stBeS').textContent = `1 / (1 + ${(st.payout * 100).toFixed(0)}%)`;
+    const ev = $('#stEv'); ev.textContent = st.n ? fmtNum(st.ev) : '–';
+    ev.style.color = !st.n ? '' : st.ev > 0 ? 'var(--up)' : 'var(--down)';
+    $('#stStreak').textContent = st.n ? st.longestLosingStreak : '–';
+    $('#stCandles').textContent = closed.length;
+    $('#stRange').textContent = `${fmtTime(closed[0].t)} →`;
+    tickResult();
+  }
+
+  function tickResult() {
+    if (!state.last) return;
+    const r = state.last.result, ms = INTERVAL_MS[r.tf], now = serverNow();
+    let label, sub, val, frac;
+    if (now < r.entryAt) {
+      label = r.dir === 'NONE' ? 'Next candle close' : 'Entry in';
+      sub = r.dir === 'NONE' ? 'generate again after it closes' : `enter ${r.dir === 'BUY' ? 'UP' : 'DOWN'} at the candle close`;
+      val = fmtDur(r.entryAt - now); frac = 1 - (r.entryAt - now) / ms;
+    } else if (r.dir !== 'NONE' && now < r.exitAt) {
+      label = 'Trade running'; sub = `expires after ${r.expiry} candle${r.expiry > 1 ? 's' : ''}`;
+      val = fmtDur(r.exitAt - now); frac = 1 - (r.exitAt - now) / (r.exitAt - r.entryAt);
+    } else {
+      label = r.dir === 'NONE' ? 'Signal is stale' : 'Expired';
+      sub = r.dir === 'NONE' ? 'generate a new signal' : 'result is checked in the Log';
+      val = '00:00'; frac = 1;
+    }
+    $('#cdLabel').textContent = label; $('#cdSub').textContent = sub; $('#cdVal').textContent = val;
+    $('#cdBar').style.width = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1) + '%';
+  }
+
+  // ---------- forward-test log ----------
+  let log = store.get(LOG_KEY, []);
+  if (!Array.isArray(log)) log = [];
+  const saveLog = () => store.set(LOG_KEY, log);
+  function addLog(entry) { log.unshift(entry); if (log.length > 2000) log.length = 2000; saveLog(); updateLogCount(); }
+  function updateLogCount() { $('#logCount').textContent = log.filter(e => e.status === 'done').length; }
+
+  let checking = false;
+  async function checkPending() {
+    if (checking) return; checking = true;
+    let changed = false;
+    try {
+      for (const e of log) {
+        if (e.status !== 'pending') continue;
+        const ms = INTERVAL_MS[e.tf];
+        if (serverNow() < e.entryOpen + (e.expiry + 1) * ms + 1500) continue;
+        try {
+          const k = await fetchKlines(e.symbol, e.tf, { startTime: e.entryOpen, limit: e.expiry + 1 });
+          if (k.length < e.expiry + 1 || k[0].t !== e.entryOpen) continue;
+          const entry = k[0].c, exit = k[e.expiry].c, d = exit - entry;
+          e.entryPrice = entry; e.exitPrice = exit;
+          e.result = d === 0 ? 'T' : ((e.dir === 'BUY') === (d > 0) ? 'W' : 'L');
+          e.status = 'done'; changed = true;
+        } catch (err) { /* retry next cycle */ }
+      }
+    } finally {
+      checking = false;
+      if (changed) { saveLog(); updateLogCount(); if ($('#v-log').classList.contains('on')) renderLog(); }
+    }
+  }
+
+  function renderLog() {
+    const done = log.filter(e => e.status === 'done');
+    const w = done.filter(e => e.result === 'W').length, l = done.filter(e => e.result === 'L').length, t = done.filter(e => e.result === 'T').length;
+    const n = w + l, ci = E.wilson(w, n);
+    $('#lgTrades').textContent = done.length; $('#lgW').textContent = w; $('#lgL').textContent = l;
+    $('#lgWr').textContent = n ? pct(w / n) : '–';
+    $('#lgCi').innerHTML = n ? `95% range <b>${pct(ci.lo)} – ${pct(ci.hi)}</b> · ties ${t}` : 'No completed trades yet.';
+    const pending = log.filter(e => e.status === 'pending').length;
+    $('#lgPending').textContent = pending ? `${pending} pending` : `${log.length} signals`;
+    const list = $('#hist');
+    if (!log.length) { list.innerHTML = '<li class="empty" style="display:block;border:0">No signals generated yet.</li>'; return; }
+    list.innerHTML = log.slice(0, 100).map(e => {
+      let res, cls;
+      if (e.status === 'none') { res = '—'; cls = 'N'; }
+      else if (e.status === 'pending') { res = 'PENDING'; cls = 'P'; }
+      else { res = e.result === 'W' ? 'WIN' : e.result === 'L' ? 'LOSS' : 'TIE'; cls = e.result; }
+      const px = e.status === 'done' ? `${fmtPrice(e.entryPrice)} → ${fmtPrice(e.exitPrice)}` : e.status === 'none' ? `score ${e.score > 0 ? '+' : ''}${e.score}` : `entry ${new Date(e.entryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return `<li><span class="tag ${e.dir}">${e.dir === 'NONE' ? 'NO' : e.dir}</span>
+        <div style="min-width:0"><div class="m1">${e.symbol} · ${e.tf} · ${e.expiry}c</div><div class="m2">${fmtTime(e.createdAt)} · ${px}</div></div>
+        <span class="res ${cls}">${res}</span></li>`;
+    }).join('');
+  }
+
+  function exportCSV() {
+    const cols = ['id', 'generated_at', 'symbol', 'timeframe', 'expiry_candles', 'payout', 'signal', 'score', 'rsi', 'rsi_filtered',
+      'signal_candle_close', 'entry_time', 'entry_price', 'exit_time', 'exit_price', 'status', 'result',
+      'bt_scope', 'bt_win_rate', 'bt_trades', 'bt_ci_low', 'bt_ci_high', 'bt_verdict'];
+    const iso = t => (t ? new Date(t).toISOString() : '');
+    const rows = log.map(e => [e.id, iso(e.createdAt), e.symbol, e.tf, e.expiry, e.payout, e.dir, e.score, e.rsi != null ? e.rsi.toFixed(2) : '', e.filtered || '',
+      e.signalClose, iso(e.entryAt), e.entryPrice ?? '', iso(e.exitAt), e.exitPrice ?? '', e.status, e.result || '',
+      e.bt && e.bt.direction, e.bt && isFinite(e.bt.winRate) ? e.bt.winRate.toFixed(4) : '', e.bt && e.bt.n, e.bt && isFinite(e.bt.lo) ? e.bt.lo.toFixed(4) : '',
+      e.bt && isFinite(e.bt.hi) ? e.bt.hi.toFixed(4) : '', e.bt && e.bt.verdict]);
+    const esc = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const csv = [cols, ...rows].map(r => r.map(esc).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `as-signal-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  // ---------- wiring ----------
+  buildSeg($('#segMarket'), MARKETS, () => state.symbol, v => { state.symbol = v; startLive(); });
+  buildSeg($('#segTf'), TFS, () => state.tf, v => { state.tf = v; startLive(); });
+  buildSeg($('#segExp'), EXPIRIES, () => state.expiry, v => { state.expiry = v; }, v => v + (v > 1 ? ' candles' : ' candle'));
+  const pin = $('#payout');
+  pin.value = Math.round(state.payout * 100);
+  pin.addEventListener('input', () => {
+    const v = parseFloat(pin.value);
+    if (isFinite(v) && v > 0 && v <= 200) { state.payout = v / 100; updateBreakEven(); saveSettings(); }
+  });
+  updateBreakEven();
+
+  $('#btnGen').onclick = generate;
+  $('#btnNew').onclick = generate;
+  $('#btnBack').onclick = () => show('setup');
+  $('#btnAnaBack').onclick = () => show('setup');
+  $('#btnLog').onclick = () => show('log');
+  $('#btnLogBack').onclick = () => show(state.last ? 'result' : 'setup');
+  $('#btnCsv').onclick = exportCSV;
+  $('#btnClear').onclick = () => { if (confirm('Delete all logged signals?')) { log = []; saveLog(); updateLogCount(); renderLog(); } };
+  $('#btnSelf').onclick = async () => {
+    const out = $('#selfOut'); out.textContent = 'Generating 3 × 20,000 random-walk candles…';
+    await yieldUI();
+    const t0 = performance.now();
+    const res = E.runRandomWalkTest({ payout: state.payout });
+    const lines = Object.keys(res).map(e => {
+      const r = res[e];
+      return `${e}c  BUY ${pct(r.BUY.winRate)} (n=${r.BUY.n})  SELL ${pct(r.SELL.winRate)} (n=${r.SELL.n})  ALL ${pct(r.ANY.winRate)} [${pct(r.ANY.ciLo)}–${pct(r.ANY.ciHi)}]`;
+    });
+    out.textContent = lines.join('\n') + `\n${Math.round(performance.now() - t0)} ms · near 50% = no look-ahead`;
+  };
+  window.addEventListener('resize', scheduleDraw);
+
+  // countdowns
+  setInterval(() => {
+    const c = state.candles[state.candles.length - 1];
+    $('#candleClose').textContent = c ? `closes in ${fmtDur(c.t + INTERVAL_MS[state.tf] - serverNow())}` : '–';
+    if ($('#v-result').classList.contains('on')) tickResult();
+  }, 250);
+  setInterval(checkPending, 10000);
+
+  // expose for testing
+  window.ASApp = { state, fetchKlines, generate, checkPending, getLog: () => log };
+
+  updateLogCount();
+  syncTime().then(checkPending);
+  startLive();
+})();
+</script>
+</body>
+</html>
