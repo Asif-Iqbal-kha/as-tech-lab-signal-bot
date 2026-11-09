@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { runRandomWalkTest, wilson } from '../engine/engine';
-import { downloadCSV } from '../lib/csv';
-import { fmtClock, fmtPrice, fmtScore, fmtTime, pct } from '../lib/format';
+import { useMemo, useState } from 'react';
+import { getStrategy, runRandomWalkTest, wilson, type RandomWalkRow } from '../engine';
+import { downloadCSV, pnlOf } from '../lib/csv';
+import { fmtClock, fmtMoney, fmtPrice, fmtScore, fmtTime, pct } from '../lib/format';
 import type { LogEntry } from '../lib/types';
+
+type Filter = 'all' | 'manual' | 'watch';
 
 function resultLabel(e: LogEntry): [string, string] {
   if (e.status === 'none') return ['—', 'N'];
@@ -10,146 +12,194 @@ function resultLabel(e: LogEntry): [string, string] {
   return [e.result === 'W' ? 'WIN' : e.result === 'L' ? 'LOSS' : 'TIE', e.result ?? 'T'];
 }
 
-function SelfTest({ payout }: { payout: number }) {
-  const [out, setOut] = useState('');
+function SelfTest() {
+  const [rows, setRows] = useState<RandomWalkRow[] | null>(null);
+  const [ms, setMs] = useState(0);
   const [running, setRunning] = useState(false);
   const run = () => {
     setRunning(true);
-    setOut('Generating 3 × 20,000 random-walk candles…');
-    // let the message paint before the synchronous run
     setTimeout(() => {
       const t0 = performance.now();
-      const res = runRandomWalkTest({ payout });
-      const lines = Object.entries(res).map(
-        ([e, r]) =>
-          `${e}c  BUY ${pct(r.BUY.winRate)} (n=${r.BUY.n})  SELL ${pct(r.SELL.winRate)} (n=${r.SELL.n})  ALL ${pct(r.ANY.winRate)} [${pct(r.ANY.ciLo)}–${pct(r.ANY.ciHi)}]`
-      );
-      setOut(`${lines.join('\n')}\n${Math.round(performance.now() - t0)} ms · near 50% = no look-ahead`);
+      setRows(runRandomWalkTest());
+      setMs(performance.now() - t0);
       setRunning(false);
     }, 30);
   };
   return (
-    <div className="card o3">
+    <div className="card o4">
       <div className="label">Engine self-test</div>
-      <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-        Runs the exact signal rule and backtest on random-walk prices. A rule with no look-ahead bug should land near 50%.
+      <div className="hint" style={{ marginTop: 0 }}>
+        Runs every strategy and the backtest on 60,000 random-walk candles. Without a look-ahead bug, every win rate lands near 50%.
       </div>
       <button className="small" type="button" style={{ width: '100%', marginTop: 10 }} onClick={run} disabled={running}>
-        Run random-walk test
+        {running ? 'Running…' : 'Run random-walk test'}
       </button>
-      {out && <div className="selftest">{out}</div>}
+      {rows && (
+        <table className="rwt mono">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>1c</th>
+              <th>2c</th>
+              <th>3c</th>
+              <th>5c</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...new Set(rows.map((r) => r.strategy))].map((sid) => (
+              <tr key={sid}>
+                <td>{getStrategy(sid).name}</td>
+                {rows
+                  .filter((r) => r.strategy === sid)
+                  .map((r) => (
+                    <td key={r.expiry} title={`n=${r.n} · 95% ${pct(r.ciLo)}–${pct(r.ciHi)}`}>
+                      {pct(r.winRate)}
+                    </td>
+                  ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {rows && <div className="fine">{Math.round(ms)} ms · hover a cell for trade count and 95% range</div>}
     </div>
   );
 }
 
 interface Props {
   log: LogEntry[];
-  payout: number;
   onClear: () => void;
-  onBack: () => void;
 }
 
-export function LogView({ log, payout, onClear, onBack }: Props) {
-  const done = log.filter((e) => e.status === 'done');
+export function LogView({ log, onClear }: Props) {
+  const [filter, setFilter] = useState<Filter>('all');
+  const shown = useMemo(() => (filter === 'all' ? log : log.filter((e) => e.mode === filter)), [log, filter]);
+  const done = shown.filter((e) => e.status === 'done');
   const w = done.filter((e) => e.result === 'W').length;
   const l = done.filter((e) => e.result === 'L').length;
   const t = done.filter((e) => e.result === 'T').length;
   const n = w + l;
   const ci = wilson(w, n);
-  const pending = log.filter((e) => e.status === 'pending').length;
+  const pending = shown.filter((e) => e.status === 'pending').length;
+  const perDollar = done.reduce((a, e) => a + pnlOf(e, 1), 0);
+  const staked = done.filter((e) => e.stake != null && e.stake > 0 && !e.blocked);
+  const pnl = staked.reduce((a, e) => a + pnlOf(e), 0);
 
   return (
     <section className="view on cols log">
       <div className="col">
-      <div className="card o1">
-        <div className="label">
-          Forward test <em>live signals, checked automatically</em>
-        </div>
-        <div className="lsum">
-          <div>
-            <div className="v">{done.length}</div>
-            <div className="k">Trades</div>
+        <div className="card o1">
+          <div className="label">
+            Forward test <em>live signals, settled automatically</em>
           </div>
-          <div>
-            <div className="v" style={{ color: 'var(--up)' }}>{w}</div>
-            <div className="k">Wins</div>
+          <div className="chips" style={{ marginBottom: 12 }}>
+            {(['all', 'manual', 'watch'] as Filter[]).map((f) => (
+              <button key={f} type="button" className={filter === f ? 'on' : ''} aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                {f === 'all' ? 'All' : f === 'manual' ? 'Generate' : 'Watch'}
+              </button>
+            ))}
           </div>
-          <div>
-            <div className="v" style={{ color: 'var(--down)' }}>{l}</div>
-            <div className="k">Losses</div>
+          <div className="lsum">
+            <div>
+              <div className="v">{done.length}</div>
+              <div className="k">Trades</div>
+            </div>
+            <div>
+              <div className="v" style={{ color: 'var(--up)' }}>{w}</div>
+              <div className="k">Wins</div>
+            </div>
+            <div>
+              <div className="v" style={{ color: 'var(--down)' }}>{l}</div>
+              <div className="k">Losses</div>
+            </div>
+            <div>
+              <div className="v">{n ? pct(w / n) : '–'}</div>
+              <div className="k">Win rate</div>
+            </div>
           </div>
-          <div>
-            <div className="v">{n ? pct(w / n) : '–'}</div>
-            <div className="k">Win rate</div>
+          <div className="cirow" style={{ textAlign: 'center' }}>
+            {n ? (
+              <>
+                95% range <b>{pct(ci.lo)} – {pct(ci.hi)}</b> · ties {t}
+              </>
+            ) : (
+              'No settled trades yet.'
+            )}
           </div>
-        </div>
-        <div className="cirow" style={{ textAlign: 'center' }}>
-          {n ? (
-            <>
-              95% range <b>{pct(ci.lo)} – {pct(ci.hi)}</b> · ties {t}
-            </>
-          ) : (
-            'No completed trades yet.'
+          {done.length > 0 && (
+            <div className="pnl">
+              <div>
+                <span>Result per $1 on every signal</span>
+                <b className="mono" style={{ color: perDollar >= 0 ? 'var(--up)' : 'var(--down)' }}>
+                  {fmtMoney(perDollar, true)}
+                </b>
+              </div>
+              <div>
+                <span>At the suggested stakes ({staked.length} trades)</span>
+                <b className="mono" style={{ color: pnl >= 0 ? 'var(--up)' : 'var(--down)' }}>
+                  {fmtMoney(pnl, true)}
+                </b>
+              </div>
+            </div>
           )}
+          <div className="btnrow">
+            <button className="small" type="button" onClick={() => downloadCSV(log)} disabled={!log.length}>
+              Export CSV
+            </button>
+            <button
+              className="small danger"
+              type="button"
+              disabled={!log.length}
+              onClick={() => {
+                if (confirm('Delete all logged signals?')) onClear();
+              }}
+            >
+              Clear log
+            </button>
+          </div>
         </div>
-        <div className="btnrow">
-          <button className="small" type="button" onClick={() => downloadCSV(log)} disabled={!log.length}>
-            Export CSV
-          </button>
-          <button
-            className="small danger"
-            type="button"
-            disabled={!log.length}
-            onClick={() => {
-              if (confirm('Delete all logged signals?')) onClear();
-            }}
-          >
-            Clear log
-          </button>
-        </div>
-      </div>
-
-      <SelfTest payout={payout} />
-      <button className="ghost o4" type="button" onClick={onBack}>
-        Back
-      </button>
+        <SelfTest />
       </div>
 
       <div className="col">
-      <div className="card o2">
-        <div className="label">
-          History <em>{pending ? `${pending} pending` : `${log.length} signals`}</em>
+        <div className="card o2">
+          <div className="label">
+            History <em>{pending ? `${pending} pending` : `${shown.length} signals`}</em>
+          </div>
+          {!shown.length ? (
+            <div className="empty">No signals yet.</div>
+          ) : (
+            <ul className="hist">
+              {shown.slice(0, 150).map((e) => {
+                const [res, cls] = resultLabel(e);
+                const px =
+                  e.status === 'done'
+                    ? `${fmtPrice(e.entryPrice)} → ${fmtPrice(e.exitPrice)}`
+                    : e.status === 'none'
+                      ? `score ${fmtScore(e.score)}`
+                      : `entry ${fmtClock(e.entryAt)}`;
+                const money = e.status === 'done' && e.stake ? ` · ${fmtMoney(pnlOf(e), true)}` : '';
+                return (
+                  <li key={e.id}>
+                    <span className={`tag ${e.dir}`}>{e.dir === 'NONE' ? 'NO' : e.dir}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="m1">
+                        {e.quotex} · {e.tf} · {e.expiry}c · {getStrategy(e.strategy).name}
+                        {e.mode === 'watch' ? ' · W' : ''}
+                      </div>
+                      <div className="m2">
+                        {fmtTime(e.createdAt)} · {px}
+                        {money}
+                        {e.blocked ? ' · paper' : ''}
+                      </div>
+                    </div>
+                    <span className={`res ${cls}`}>{res}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-        {!log.length ? (
-          <div className="empty">No signals generated yet.</div>
-        ) : (
-          <ul className="hist">
-            {log.slice(0, 100).map((e) => {
-              const [res, cls] = resultLabel(e);
-              const px =
-                e.status === 'done'
-                  ? `${fmtPrice(e.entryPrice)} → ${fmtPrice(e.exitPrice)}`
-                  : e.status === 'none'
-                    ? `score ${fmtScore(e.score)}`
-                    : `entry ${fmtClock(e.entryAt)}`;
-              return (
-                <li key={e.id}>
-                  <span className={`tag ${e.dir}`}>{e.dir === 'NONE' ? 'NO' : e.dir}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="m1">
-                      {e.symbol} · {e.tf} · {e.expiry}c
-                    </div>
-                    <div className="m2">
-                      {fmtTime(e.createdAt)} · {px}
-                    </div>
-                  </div>
-                  <span className={`res ${cls}`}>{res}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
       </div>
     </section>
   );

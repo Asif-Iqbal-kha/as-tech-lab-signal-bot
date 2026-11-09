@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Candle } from '../engine/engine';
+import type { Candle } from '../engine';
+import { isAvailable, tdKeyFor, type Asset } from '../data/assets';
 import { fetchKlines } from '../data/binance';
-import { POLL_MS, WS_BASE, WS_OPEN_TIMEOUT_MS } from '../lib/constants';
+import { tdHistory } from '../data/twelvedata';
+import { POLL_MS, TD_POLL_MS, WS_BASE, WS_OPEN_TIMEOUT_MS, type Timeframe } from '../lib/constants';
 
-export type FeedStatus = 'connecting' | 'live' | 'polling' | 'error';
+export type FeedStatus = 'connecting' | 'live' | 'polling' | 'slow' | 'error' | 'unavailable';
 
 const MAX_CANDLES = 300;
 
@@ -16,22 +18,54 @@ function merge(list: Candle[], k: Candle): Candle[] {
 }
 
 /**
- * Live candles for one symbol/interval: REST history, then WebSocket.
- * Falls back to REST polling every 3 s if the socket fails or doesn't open.
+ * Live candles for the chart.
+ * Binance: REST history, then WebSocket; falls back to polling every 3 s.
+ * Twelve Data (forex): closed candles polled every 20 s while the page is visible,
+ * to stay inside the free plan's 8 requests per minute.
  */
-export function useLiveCandles(symbol: string, interval: string) {
+export function useLiveCandles(asset: Asset, tf: Timeframe, tdKey: string, enabled: boolean) {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [status, setStatus] = useState<FeedStatus>('connecting');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Local flag: callbacks from a previous symbol/interval can never write state.
     let alive = true;
     let ws: WebSocket | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let openTimer: ReturnType<typeof setTimeout> | null = null;
 
     setCandles([]);
+    setError(null);
+    if (!isAvailable(asset, tdKey)) {
+      setStatus('unavailable');
+      return;
+    }
+    if (!enabled) return;
     setStatus('connecting');
+
+    if (asset.source === 'twelvedata') {
+      const key = tdKeyFor(tdKey);
+      const load = async (first: boolean) => {
+        if (document.visibilityState !== 'visible' && !first) return;
+        try {
+          const k = await tdHistory(asset.symbol, tf, first ? 120 : 3, key);
+          if (!alive) return;
+          setCandles((list) => (first ? k : k.reduce(merge, list)));
+          setStatus('slow');
+          setError(null);
+        } catch (e) {
+          if (!alive) return;
+          setStatus('error');
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      };
+      void load(true);
+      pollTimer = setInterval(() => void load(false), TD_POLL_MS);
+      return () => {
+        alive = false;
+        if (pollTimer) clearInterval(pollTimer);
+      };
+    }
 
     const startPolling = () => {
       if (!alive || pollTimer) return;
@@ -43,7 +77,7 @@ export function useLiveCandles(symbol: string, interval: string) {
       setStatus('polling');
       const tick = async () => {
         try {
-          const k = await fetchKlines(symbol, interval, { limit: 2 });
+          const k = await fetchKlines(asset.symbol, tf, { limit: 2 });
           if (!alive) return;
           setCandles((list) => k.reduce(merge, list));
           setStatus('polling');
@@ -58,7 +92,7 @@ export function useLiveCandles(symbol: string, interval: string) {
     const openSocket = () => {
       let opened = false;
       try {
-        ws = new WebSocket(`${WS_BASE}/${symbol.toLowerCase()}@kline_${interval}`);
+        ws = new WebSocket(`${WS_BASE}/ws/${asset.symbol.toLowerCase()}@kline_${tf}`);
       } catch {
         startPolling();
         return;
@@ -88,7 +122,7 @@ export function useLiveCandles(symbol: string, interval: string) {
 
     (async () => {
       try {
-        const k = await fetchKlines(symbol, interval, { limit: 120 });
+        const k = await fetchKlines(asset.symbol, tf, { limit: 120 });
         if (alive) setCandles(k);
       } catch {
         if (alive) setStatus('error');
@@ -106,10 +140,10 @@ export function useLiveCandles(symbol: string, interval: string) {
         ws.close();
       }
     };
-  }, [symbol, interval]);
+  }, [asset, tf, tdKey, enabled]);
 
-  /** Merge a candle fetched elsewhere (e.g. during signal generation). */
-  const mergeCandle = useCallback((k: Candle) => setCandles((list) => merge(list, k)), []);
+  /** Merge candles fetched elsewhere (e.g. during signal generation). */
+  const mergeCandles = useCallback((k: Candle[]) => setCandles((list) => k.reduce(merge, list)), []);
 
-  return { candles, status, mergeCandle };
+  return { candles, status, error, mergeCandles };
 }

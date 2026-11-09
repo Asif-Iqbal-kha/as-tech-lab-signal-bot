@@ -7,15 +7,19 @@ const esc = (v: unknown) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+export const pnlOf = (e: LogEntry, stake = e.stake ?? 0): number =>
+  e.status !== 'done' ? 0 : e.result === 'W' ? stake * e.payout : e.result === 'L' ? -stake : 0;
+
 export function logToCSV(log: LogEntry[]): string {
   const cols = [
-    'id', 'generated_at', 'symbol', 'timeframe', 'expiry_candles', 'payout', 'signal', 'score', 'rsi', 'rsi_filtered',
-    'signal_candle_close', 'entry_time', 'entry_price', 'exit_time', 'exit_price', 'status', 'result',
+    'id', 'generated_at', 'asset', 'quotex_name', 'timeframe', 'expiry_candles', 'strategy', 'entry_mode', 'payout', 'signal', 'score', 'max_score',
+    'signal_candle_close', 'entry_time', 'entry_price', 'exit_time', 'exit_price', 'status', 'result', 'stake', 'pnl', 'daily_stop',
     'bt_scope', 'bt_win_rate', 'bt_trades', 'bt_ci_low', 'bt_ci_high', 'bt_verdict'
   ];
   const rows = log.map((e) => [
-    e.id, iso(e.createdAt), e.symbol, e.tf, e.expiry, e.payout, e.dir, e.score, fx(e.rsi, 2), e.filtered ?? '',
+    e.id, iso(e.createdAt), e.assetId, e.quotex, e.tf, e.expiry, e.strategy, e.mode, e.payout, e.dir, e.score, e.maxScore,
     e.signalClose, iso(e.entryAt), e.entryPrice ?? '', iso(e.exitAt), e.exitPrice ?? '', e.status, e.result ?? '',
+    e.stake ?? '', e.status === 'done' && e.stake != null ? pnlOf(e).toFixed(2) : '', e.blocked ? 'yes' : '',
     e.bt?.scope, fx(e.bt?.winRate), e.bt?.n, fx(e.bt?.lo), fx(e.bt?.hi), e.bt?.verdict
   ]);
   return [cols, ...rows].map((r) => r.map(esc).join(',')).join('\n');

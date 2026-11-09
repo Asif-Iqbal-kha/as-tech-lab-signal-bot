@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ASEngine } from './engine/engine';
+import { ASEngine } from './engine';
 import './styles.css';
 
 declare global {

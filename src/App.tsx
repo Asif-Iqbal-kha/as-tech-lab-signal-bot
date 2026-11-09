@@ -1,52 +1,65 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { SetupResult } from './engine';
 import { AnalysingView } from './components/AnalysingView';
 import { Footer, Header } from './components/Header';
 import { LogView } from './components/LogView';
 import { ResultView } from './components/ResultView';
+import { ScannerView } from './components/ScannerView';
+import { SettingsView } from './components/SettingsView';
 import { SetupView } from './components/SetupView';
+import { TabBar, type Tab } from './components/TabBar';
+import { WatchView } from './components/WatchView';
+import { getAsset } from './data/assets';
 import { syncServerTime } from './data/binance';
 import { useForwardLog } from './hooks/useForwardLog';
 import { useLiveCandles } from './hooks/useLiveCandles';
 import { useNow } from './hooks/useNow';
-import { EXPIRIES, MARKETS, TIMEFRAMES } from './lib/constants';
+import { useScanner } from './hooks/useScanner';
+import { useWatch } from './hooks/useWatch';
+import type { Expiry, Timeframe } from './lib/constants';
 import { runSignal } from './lib/runSignal';
-import { storage } from './lib/storage';
+import { loadSettings, saveSettings } from './lib/settings';
 import type { Settings, SignalRun, StepId, StepState } from './lib/types';
 
-type View = 'setup' | 'analysing' | 'result' | 'log';
+type SignalView = 'setup' | 'analysing' | 'result';
 
-const SETTINGS_KEY = 'asb.settings.v1';
 const INITIAL_STEPS: Record<StepId, StepState> = {
   fetch: { status: 'pending' },
   ind: { status: 'pending' },
-  bt: { status: 'pending' }
+  bt: { status: 'pending' },
+  risk: { status: 'pending' }
 };
 
-function loadSettings(): Settings {
-  const s = storage.get<Partial<Settings>>(SETTINGS_KEY, {});
-  return {
-    symbol: MARKETS.includes(s.symbol as never) ? (s.symbol as Settings['symbol']) : 'BTCUSDT',
-    tf: TIMEFRAMES.includes(s.tf as never) ? (s.tf as Settings['tf']) : '1m',
-    expiry: EXPIRIES.includes(s.expiry as never) ? (s.expiry as Settings['expiry']) : 1,
-    payout: typeof s.payout === 'number' && s.payout > 0 ? s.payout : 0.85
-  };
-}
+const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Date(b).toDateString();
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [view, setView] = useState<View>('setup');
+  const [tab, setTab] = useState<Tab>('signal');
+  const [view, setView] = useState<SignalView>('setup');
   const [steps, setSteps] = useState(INITIAL_STEPS);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<SignalRun | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
 
-  const { candles, status, mergeCandle } = useLiveCandles(settings.symbol, settings.tf);
-  const forward = useForwardLog();
+  const asset = getAsset(settings.assetId)!;
   const now = useNow(250);
+  const forward = useForwardLog(settings.tdKey);
+  const live = useLiveCandles(asset, settings.tf, settings.tdKey, tab === 'signal');
+  const scanner = useScanner();
+
+  // Daily stop: losing trades today that had a real (non-zero) suggested stake.
+  const dailyStop = useMemo(() => {
+    const losses = forward.log.filter(
+      (e) => e.status === 'done' && e.result === 'L' && (e.stake ?? 0) > 0 && !e.blocked && sameDay(e.exitAt, Date.now())
+    ).length;
+    return { losses, max: settings.dailyMaxLosses, stopped: settings.dailyMaxLosses > 0 && losses >= settings.dailyMaxLosses };
+  }, [forward.log, settings.dailyMaxLosses]);
+
+  const watch = useWatch({ settings, dailyStopped: dailyStop.stopped, onSignal: forward.add });
 
   useEffect(() => {
-    storage.set(SETTINGS_KEY, settings);
+    saveSettings(settings);
   }, [settings]);
   useEffect(() => {
     void syncServerTime().then(forward.checkPending);
@@ -55,12 +68,12 @@ export default function App() {
   // effect must never return anything except a cleanup function.
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [view]);
+  }, [view, tab]);
 
   // Expose live app state for testing in the console.
   useEffect(() => {
-    window.ASApp = { settings, candles, run, log: forward.log, checkPending: forward.checkPending };
-  }, [settings, candles, run, forward.log, forward.checkPending]);
+    window.ASApp = { settings, candles: live.candles, run, log: forward.log, scan: scanner.state, watch: { items: watch.items, alerts: watch.alerts } };
+  }, [settings, live.candles, run, forward.log, scanner.state, watch.items, watch.alerts]);
 
   const updateSettings = useCallback((p: Partial<Settings>) => setSettings((s) => ({ ...s, ...p })), []);
 
@@ -71,10 +84,9 @@ export default function App() {
     setSteps(INITIAL_STEPS);
     setError(null);
     setView('analysing');
-    const params = settings;
     try {
-      const result = await runSignal(params, (id, s) => setSteps((prev) => ({ ...prev, [id]: s })));
-      mergeCandle(result.forming);
+      const result = await runSignal(settings, (id, s) => setSteps((prev) => ({ ...prev, [id]: s })), dailyStop.stopped);
+      live.mergeCandles(result.closed.slice(-3));
       forward.add(result.entry);
       setRun(result);
       setView('result');
@@ -84,31 +96,104 @@ export default function App() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [settings, mergeCandle, forward]);
+  }, [settings, dailyStop.stopped, live, forward]);
 
-  const completed = forward.log.filter((e) => e.status === 'done').length;
+  const isWatched = (assetId: string, tf: string, expiry: number, strategy: string) =>
+    watch.items.some((w) => w.assetId === assetId && w.tf === tf && w.expiry === expiry && w.strategy === strategy);
+
+  const watchCurrent = () => watch.add({ assetId: settings.assetId, tf: settings.tf, expiry: settings.expiry, strategy: settings.strategy });
+
+  const watchScan = (r: SetupResult) =>
+    watch.add({
+      assetId: r.assetId,
+      tf: r.tf as Timeframe,
+      expiry: r.expiry as Expiry,
+      strategy: r.strategy,
+      snap: {
+        n: r.all.n,
+        wins: r.all.wins,
+        losses: r.all.losses,
+        winRate: r.all.winRate,
+        lo: r.all.ci.lo,
+        hi: r.all.ci.hi,
+        longestLosingStreak: r.all.longestLosingStreak,
+        validated: r.validated,
+        label: r.label,
+        source: 'scan'
+      }
+    });
+
+  const openScan = (r: SetupResult) => {
+    updateSettings({ assetId: r.assetId, tf: r.tf as Timeframe, expiry: r.expiry as Expiry, strategy: r.strategy });
+    setTab('signal');
+    setView('setup');
+  };
+
+  const watchedKeys = useMemo(() => new Set(watch.items.map((w) => `${w.assetId}|${w.tf}|${w.expiry}|${w.strategy}`)), [watch.items]);
+  const settled = forward.log.filter((e) => e.status === 'done').length;
+  const liveAlerts = watch.alerts.filter((a) => now < a.expiresAt).length;
 
   return (
     <div className="app">
-      <Header status={status} logCount={completed} onLog={() => setView('log')} />
+      <Header status={tab === 'signal' ? live.status : null} watching={watch.running ? watch.items.length : 0} />
+      <TabBar
+        tab={tab}
+        onTab={(t) => {
+          setTab(t);
+          if (t === 'signal' && view === 'analysing' && !busy) setView(run ? 'result' : 'setup');
+        }}
+        badges={{ log: settled, watch: liveAlerts || undefined }}
+        live={{ watch: watch.running, scan: scanner.state.status === 'running' }}
+      />
 
-      {view === 'setup' && (
-        <SetupView settings={settings} onChange={updateSettings} candles={candles} now={now} onGenerate={generate} busy={busy} />
+      {tab === 'signal' && view === 'setup' && (
+        <SetupView
+          settings={settings}
+          onChange={updateSettings}
+          candles={live.candles}
+          feedError={live.error}
+          now={now}
+          onGenerate={generate}
+          onWatch={watchCurrent}
+          watched={isWatched(settings.assetId, settings.tf, settings.expiry, settings.strategy)}
+          busy={busy}
+          dailyStop={dailyStop}
+        />
       )}
-      {view === 'analysing' && (
+      {tab === 'signal' && view === 'analysing' && (
         <AnalysingView
-          what={`${settings.symbol} · ${settings.tf} · ${settings.expiry}c`}
+          what={`${asset.quotex} · ${settings.tf} · ${settings.expiry}c`}
           steps={steps}
           error={error}
           onBack={() => setView('setup')}
         />
       )}
-      {view === 'result' && run && (
-        <ResultView run={run} now={now} onNew={generate} onBack={() => setView('setup')} busy={busy} />
+      {tab === 'signal' && view === 'result' && run && (
+        <ResultView
+          run={run}
+          now={now}
+          bankroll={settings.bankroll}
+          onNew={generate}
+          onBack={() => setView('setup')}
+          onWatch={() => watch.add({ assetId: run.entry.assetId, tf: run.entry.tf, expiry: run.entry.expiry, strategy: run.entry.strategy })}
+          watched={isWatched(run.entry.assetId, run.entry.tf, run.entry.expiry, run.entry.strategy)}
+          busy={busy}
+        />
       )}
-      {view === 'log' && (
-        <LogView log={forward.log} payout={settings.payout} onClear={forward.clear} onBack={() => setView(run ? 'result' : 'setup')} />
+      {tab === 'scan' && (
+        <ScannerView
+          state={scanner.state}
+          settings={settings}
+          onRun={(cfg) => void scanner.run(cfg)}
+          onCancel={scanner.cancel}
+          onWatch={watchScan}
+          onOpen={openScan}
+          watchedKeys={watchedKeys}
+        />
       )}
+      {tab === 'watch' && <WatchView watch={watch} now={now} onOpenScanner={() => setTab('scan')} />}
+      {tab === 'log' && <LogView log={forward.log} onClear={forward.clear} />}
+      {tab === 'settings' && <SettingsView settings={settings} onChange={updateSettings} />}
 
       <Footer />
     </div>

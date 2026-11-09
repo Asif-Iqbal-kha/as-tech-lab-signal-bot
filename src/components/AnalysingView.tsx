@@ -3,7 +3,8 @@ import type { StepId, StepState } from '../lib/types';
 export const STEPS: [StepId, string][] = [
   ['fetch', 'Fetching candles'],
   ['ind', 'Calculating indicators'],
-  ['bt', 'Running backtest']
+  ['bt', 'Running backtest'],
+  ['risk', 'Sizing stake & simulating bankroll']
 ];
 
 interface Props {
@@ -33,7 +34,7 @@ export function AnalysingView({ what, steps, error, onBack }: Props) {
             );
           })}
         </ul>
-        {error && <div className="errbox">Error: {error}</div>}
+        {error && <div className="errbox">{error}</div>}
       </div>
       {error && (
         <button className="ghost" type="button" onClick={onBack}>

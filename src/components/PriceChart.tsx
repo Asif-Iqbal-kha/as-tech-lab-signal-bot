@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Candle } from '../engine/engine';
+import type { Candle } from '../engine';
 import { fmtPrice } from '../lib/format';
 
 const N = 60;
