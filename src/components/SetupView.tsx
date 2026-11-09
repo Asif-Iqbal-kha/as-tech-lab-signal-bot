@@ -22,13 +22,46 @@ export function SetupView({ settings, onChange, candles, now, onGenerate, busy }
   const change = last ? (last.c - shown[0].o) / shown[0].o : NaN;
 
   return (
-    <section className="view on">
-      <div className="card">
+    <section className="view on cols setup">
+      {/* left column on desktop: chart */}
+      <div className="col">
+      <div className="card chartcard o3">
+        <div className="pricebar">
+          <div>
+            <div className="sym">
+              {settings.symbol} · {settings.tf}
+            </div>
+            <div className="px mono">{fmtPrice(last?.c)}</div>
+          </div>
+          <div className="chg">
+            {Number.isFinite(change) && (
+              <>
+                <span style={{ color: change >= 0 ? 'var(--up)' : 'var(--down)' }}>
+                  {change >= 0 ? '+' : '−'}
+                  {Math.abs(change * 100).toFixed(2)}%
+                </span>
+                <br />
+                {shown.length} candles
+              </>
+            )}
+          </div>
+        </div>
+        <PriceChart candles={candles} />
+        <div className="chartfoot">
+          <span>last {CHART_CANDLES} candles</span>
+          <span>{last ? `closes in ${fmtDur(last.t + INTERVAL_MS[settings.tf] - now)}` : '–'}</span>
+        </div>
+      </div>
+      </div>
+
+      {/* right column on desktop: controls */}
+      <div className="col">
+      <div className="card o1">
         <div className="label">Market</div>
         <Segmented label="Market" items={MARKETS} value={settings.symbol} onChange={(symbol) => onChange({ symbol })} cols={3} />
       </div>
 
-      <div className="card">
+      <div className="card o2">
         <div className="label">Timeframe</div>
         <Segmented label="Timeframe" items={TIMEFRAMES} value={settings.tf} onChange={(tf) => onChange({ tf })} cols={4} />
         <div className="label" style={{ marginTop: 14 }}>
@@ -72,37 +105,10 @@ export function SetupView({ settings, onChange, candles, now, onGenerate, busy }
         </div>
       </div>
 
-      <div className="card">
-        <div className="pricebar">
-          <div>
-            <div className="sym">
-              {settings.symbol} · {settings.tf}
-            </div>
-            <div className="px mono">{fmtPrice(last?.c)}</div>
-          </div>
-          <div className="chg">
-            {Number.isFinite(change) && (
-              <>
-                <span style={{ color: change >= 0 ? 'var(--up)' : 'var(--down)' }}>
-                  {change >= 0 ? '+' : '−'}
-                  {Math.abs(change * 100).toFixed(2)}%
-                </span>
-                <br />
-                {shown.length} candles
-              </>
-            )}
-          </div>
-        </div>
-        <PriceChart candles={candles} />
-        <div className="chartfoot">
-          <span>last {CHART_CANDLES} candles</span>
-          <span>{last ? `closes in ${fmtDur(last.t + INTERVAL_MS[settings.tf] - now)}` : '–'}</span>
-        </div>
-      </div>
-
-      <button className="cta" type="button" onClick={onGenerate} disabled={busy}>
+      <button className="cta o4" type="button" onClick={onGenerate} disabled={busy}>
         Generate Signal
       </button>
+      </div>
     </section>
   );
 }

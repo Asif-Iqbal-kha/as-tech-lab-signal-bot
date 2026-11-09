@@ -3,13 +3,14 @@ import type { Candle } from '../engine/engine';
 import { fmtPrice } from '../lib/format';
 
 const N = 60;
-const H = 170;
 const UP = '#1fcf7a';
 const DOWN = '#f0475a';
 const GOLD = '#e3b04b';
 
 function draw(cv: HTMLCanvasElement, candles: Candle[]) {
   const w = cv.clientWidth || 300;
+  // Height comes from CSS so the chart can grow on tablet/desktop.
+  const H = cv.clientHeight || 170;
   const dpr = window.devicePixelRatio || 1;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(H * dpr)) {
     cv.width = Math.round(w * dpr);
@@ -94,21 +95,23 @@ function draw(cv: HTMLCanvasElement, candles: Candle[]) {
 
 export function PriceChart({ candles }: { candles: Candle[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState('');
 
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
-    const ro = new ResizeObserver(() => setWidth(cv.clientWidth));
+    const ro = new ResizeObserver(() => setSize(`${cv.clientWidth}x${cv.clientHeight}`));
     ro.observe(cv);
     return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
     if (!ref.current) return;
-    const id = requestAnimationFrame(() => ref.current && draw(ref.current, candles));
+    const id = requestAnimationFrame(() => {
+      if (ref.current) draw(ref.current, candles);
+    });
     return () => cancelAnimationFrame(id);
-  }, [candles, width]);
+  }, [candles, size]);
 
   return <canvas ref={ref} id="chart" aria-label="Live candlestick chart" role="img" />;
 }

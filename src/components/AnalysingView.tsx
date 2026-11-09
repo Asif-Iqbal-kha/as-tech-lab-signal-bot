@@ -15,7 +15,7 @@ interface Props {
 
 export function AnalysingView({ what, steps, error, onBack }: Props) {
   return (
-    <section className="view on">
+    <section className="view on narrow">
       <div className="card">
         <div className="label">
           Analysing <em>{what}</em>

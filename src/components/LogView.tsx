@@ -29,7 +29,7 @@ function SelfTest({ payout }: { payout: number }) {
     }, 30);
   };
   return (
-    <div className="card">
+    <div className="card o3">
       <div className="label">Engine self-test</div>
       <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
         Runs the exact signal rule and backtest on random-walk prices. A rule with no look-ahead bug should land near 50%.
@@ -59,8 +59,9 @@ export function LogView({ log, payout, onClear, onBack }: Props) {
   const pending = log.filter((e) => e.status === 'pending').length;
 
   return (
-    <section className="view on">
-      <div className="card">
+    <section className="view on cols log">
+      <div className="col">
+      <div className="card o1">
         <div className="label">
           Forward test <em>live signals, checked automatically</em>
         </div>
@@ -108,7 +109,14 @@ export function LogView({ log, payout, onClear, onBack }: Props) {
         </div>
       </div>
 
-      <div className="card">
+      <SelfTest payout={payout} />
+      <button className="ghost o4" type="button" onClick={onBack}>
+        Back
+      </button>
+      </div>
+
+      <div className="col">
+      <div className="card o2">
         <div className="label">
           History <em>{pending ? `${pending} pending` : `${log.length} signals`}</em>
         </div>
@@ -142,12 +150,7 @@ export function LogView({ log, payout, onClear, onBack }: Props) {
           </ul>
         )}
       </div>
-
-      <SelfTest payout={payout} />
-
-      <button className="ghost" type="button" onClick={onBack}>
-        Back
-      </button>
+      </div>
     </section>
   );
 }

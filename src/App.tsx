@@ -45,11 +45,17 @@ export default function App() {
   const forward = useForwardLog();
   const now = useNow(250);
 
-  useEffect(() => storage.set(SETTINGS_KEY, settings), [settings]);
+  useEffect(() => {
+    storage.set(SETTINGS_KEY, settings);
+  }, [settings]);
   useEffect(() => {
     void syncServerTime().then(forward.checkPending);
   }, [forward.checkPending]);
-  useEffect(() => window.scrollTo({ top: 0 }), [view]);
+  // Block body on purpose: newer browsers return a Promise from scrollTo, and an
+  // effect must never return anything except a cleanup function.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [view]);
 
   // Expose live app state for testing in the console.
   useEffect(() => {

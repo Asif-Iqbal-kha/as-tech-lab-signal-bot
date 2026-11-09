@@ -114,7 +114,7 @@ function Countdown({ run, now }: { run: SignalRun; now: number }) {
     frac = 1;
   }
   return (
-    <div className="card">
+    <div className="card o2">
       <div className="countdown">
         <div>
           <div className="k">{label}</div>
@@ -145,8 +145,9 @@ export function ResultView({ run, now, onNew, onBack, busy }: Props) {
   const verdictCls = st.verdict === 'Edge found' ? 'edge' : st.verdict === 'Losing setup' ? 'losing' : 'noedge';
 
   return (
-    <section className="view on">
-      <div className={`sig ${r.dir}`}>
+    <section className="view on cols result">
+      <div className="col">
+      <div className={`sig o1 ${r.dir}`}>
         <div className="meta">
           {r.symbol} · {r.tf} · expiry {r.expiry} candle{r.expiry > 1 ? 's' : ''}
         </div>
@@ -164,14 +165,16 @@ export function ResultView({ run, now, onNew, onBack, busy }: Props) {
 
       <Countdown run={run} now={now} />
 
-      <div className="card">
+      <div className="card o3">
         <div className="label">
           Why <em>candle closed {fmtClock(r.signalCandleOpen + INTERVAL_MS[r.tf])}</em>
         </div>
         <Reasons sig={sig} />
       </div>
+      </div>
 
-      <div className="card">
+      <div className="col">
+      <div className="card o4">
         <div className="label">
           Backtest win rate <em>{scope === 'ANY' ? 'all BUY+SELL signals' : `${scope} signals`}</em>
         </div>
@@ -205,8 +208,8 @@ export function ResultView({ run, now, onNew, onBack, busy }: Props) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="grid2">
+      <div className="card o5">
+        <div className="grid2 stats4">
           <div className="stat">
             <div className="k">Break-even</div>
             <div className="v mono">{pct(st.breakEven)}</div>
@@ -232,12 +235,15 @@ export function ResultView({ run, now, onNew, onBack, busy }: Props) {
         </div>
       </div>
 
-      <button className="cta" type="button" onClick={onNew} disabled={busy}>
-        Generate New Signal
-      </button>
-      <button className="ghost" type="button" onClick={onBack}>
-        Change settings
-      </button>
+      <div className="actions o6">
+        <button className="cta" type="button" onClick={onNew} disabled={busy}>
+          Generate New Signal
+        </button>
+        <button className="ghost" type="button" onClick={onBack}>
+          Change settings
+        </button>
+      </div>
+      </div>
     </section>
   );
 }

@@ -21,7 +21,9 @@ export function useForwardLog() {
   const logRef = useRef(log);
   logRef.current = log;
 
-  useEffect(() => storage.set(LOG_KEY, log), [log]);
+  useEffect(() => {
+    storage.set(LOG_KEY, log);
+  }, [log]);
 
   const add = useCallback((e: LogEntry) => setLog((l) => [e, ...l].slice(0, MAX_ENTRIES)), []);
   const clear = useCallback(() => setLog([]), []);
